@@ -3,7 +3,7 @@ const config = {
   host: "localhost",
   env: "development",
   secret: "49fb775afa045a8d97a4ddba26c743cb",
-  timer: 1562271258,
+  timer: 156227125889798790878978,
 };
 
 module.exports = config;
