@@ -26,6 +26,10 @@ const UserSchema = new Schema({
   admin: {
     type: Boolean,
   },
+  permissions: {
+    type: String,
+    enum: ["USER", "ADMIN"],
+  },
   books: [{ type: Schema.Types.ObjectId, ref: "Book" }],
 });
 
