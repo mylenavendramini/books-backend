@@ -1,4 +1,8 @@
+const { response } = require("express");
 const User = require("../model/user.model");
+const JWT = require("jsonwebtoken");
+let bcrypt = require("bcrypt");
+const authConfig = require("../config/config");
 
 exports.getUsers = async (request, response) => {
   try {
@@ -76,5 +80,32 @@ exports.deleteUsers = async (request, response) => {
   } catch (error) {
     console.log(error.message);
     return response.status(400).send("There was an error deleting the user.");
+  }
+};
+
+const tokenKey = authConfig.secret;
+// const tokenKey = "49fb775afa045a8d97a4ddba26c743cb";
+console.log(tokenKey);
+// default token = {}
+const generateToken = (params = {}) => {
+  return JWT.sign({ params }, tokenKey, { expiresIn: 10000 });
+};
+
+exports.login = async (request, response) => {
+  try {
+    const { email, password } = request.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      return response.status(404).send("User not found.");
+    }
+    if (!(await bcrypt.compare(password, user.password))) {
+      return response.status(400).send("Invalid password. Try again.");
+    }
+    const token = generateToken({ id: user.id });
+    user.password = undefined;
+    return response.send({ data: user, token });
+  } catch (error) {
+    console.log(error.message);
+    return response.status(400).send("There was an error with login.");
   }
 };
