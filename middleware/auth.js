@@ -1,6 +1,7 @@
 const JWT = require("jsonwebtoken");
 const authConfig = require("../config/config");
 const TokenBlacklist = require("../blacklist-token/blacklist.model");
+const User = require("../model/user.model");
 
 // this permissions came from routes/users:
 // "route.get("/", authMiddleware(["ADMIN"]), userController.getUsers);""
@@ -9,24 +10,27 @@ const authMiddleware = (permissions) => {
     try {
       const authHeader = req.headers.authorization;
       console.log(authHeader);
-    } catch (error) {}
+      const _userId = await _getUserId(authHeader);
+      const userPermissions = await User.findOne({ _id: _userId });
+      console.log(userPermissions);
+      // verificar se userPermissions.[permissions] esta na lista de permissoes da rota. se sim, next, se nao, status (400) e falar que o usuario nao tem permissao
+
+      // novos desafios profissionais
+    } catch (error) {
+      return res.status(400).send({ error: error.message });
+    }
   };
 };
 
-const _checkUserToken = async (userToken) => {
+const _checkUserToken = async (token) => {
   // check if the userToken exists
-  if (!userToken) {
+  if (!token) {
     throw new Error("Token not informed.");
   }
-  // check if the userToken has the correct format
-  const parts = userToken.split("");
-  if (!parts.length === 2) throw Error("Token error!");
-  const [scheme, token] = parts;
-  if (!/^bearer$/i.test(scheme)) {
-    throw Error("Invalid token format!");
-  }
+
   // decode token
   let decoded = await JWT.verify(token, authConfig.secret);
+  console.log("decoded" + decoded);
   if (!decoded.params.id) {
     throw Error("Invalid token!");
   } else {
@@ -34,10 +38,11 @@ const _checkUserToken = async (userToken) => {
     console.log(idDecoded);
 
     const _verifyUserBlacklist = async (token) => {
-      const verify = await TokenBlacklist.findOne({ token: token });
-      return verify;
+      // if it found theres a user that used the token and did logout
+
+      return await TokenBlacklist.findOne({ token: token });
     };
-    if (await _verifyUserBlacklist(userToken)) {
+    if (await _verifyUserBlacklist(token)) {
       throw Error("Sorry, your session has expired.");
     }
     return idDecoded;
@@ -59,15 +64,6 @@ const _getUserId = async (authHeader) => {
   console.log(token);
   // check if the user id token pass the _checkUserToken?
   return await _checkUserToken(token);
-};
-
-const _getUserPermissions = async (user) => {
-  const userPermissions = [];
-  // don't get this part:
-  if (user["__t"] && user["__t"] == "ADMIN") {
-    userPermissions.push("ADMIN");
-  }
-  return userPermissions;
 };
 
 const _checkIfUserHavePermission = async (
