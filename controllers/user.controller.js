@@ -30,6 +30,7 @@ exports.postUsers = async (request, response) => {
       name,
       email,
       password,
+      permissions: "USER",
     });
     if (user) {
       return response.send({ message: "User created.", data: user });
@@ -94,7 +95,10 @@ const generateToken = (params = {}) => {
 exports.login = async (request, response) => {
   try {
     const { email, password } = request.body;
-    const user = await User.findOne({ email: email });
+    // select({password: true}) is because the select password in user.model is set to false to don't show when we get users
+    const user = await User.findOne({ email: email }).select({
+      password: true,
+    });
     if (!user) {
       return response.status(404).send("User not found.");
     }
