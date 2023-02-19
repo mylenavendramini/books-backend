@@ -11,9 +11,22 @@ const authMiddleware = (permissions) => {
       const authHeader = req.headers.authorization;
       console.log(authHeader);
       const _userId = await _getUserId(authHeader);
-      const userPermissions = await User.findOne({ _id: _userId });
-      console.log(userPermissions);
+      const user = await User.findOne({ _id: _userId });
+      console.log(user);
       // verificar se userPermissions.[permissions] esta na lista de permissoes da rota. se sim, next, se nao, status (400) e falar que o usuario nao tem permissao
+      let hasPermission = false;
+      permissions.forEach((permission) => {
+        if (user.permissions === permission) {
+          hasPermission = true;
+        }
+      });
+      if (hasPermission) {
+        return next();
+      } else {
+        return res
+          .status(400)
+          .send({ message: "User doesn't have the permission." });
+      }
 
       // novos desafios profissionais
     } catch (error) {
