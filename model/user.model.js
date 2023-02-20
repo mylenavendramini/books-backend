@@ -22,6 +22,8 @@ const UserSchema = new Schema({
   },
   password: {
     type: String,
+    // select to false to don't show password when we get users. when we need the password, we need to use the select() method to change the select to true (e.g login in user.controller)
+    select: false,
   },
   admin: {
     type: Boolean,
