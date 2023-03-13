@@ -1,25 +1,40 @@
-const { response } = require("express");
-const User = require("../model/user.model");
-const JWT = require("jsonwebtoken");
-let bcrypt = require("bcrypt");
-const authConfig = require("../config/config");
+const { response } = require('express');
+const User = require('../model/user.model');
+const JWT = require('jsonwebtoken');
+let bcrypt = require('bcrypt');
+const authConfig = require('../config/config');
+const RequestStatus = require('../utils/requestStatus');
 
 exports.getUsers = async (request, response) => {
   try {
     const users = await User.find().populate({
-      path: "books",
-      select: "name",
-      model: "Book",
+      path: 'books',
+      select: 'name',
+      model: 'Book',
     });
     // const users = await User.find({name: "Maria"});
     if (users) {
       response.status(202).send(users);
     } else {
-      response.status(400).json("An error has occured!");
+      response.status(400).json({ message: 'An error has occured!' });
     }
   } catch (error) {
     console.log(error.message);
-    response.status(400).send("There was an error showing the user.");
+    response.status(400).send('There was an error showing the user.');
+  }
+};
+
+exports.getUser = async (request, response) => {
+  try {
+    let user = await User.findById({ _id: request.params.id });
+
+    if (user) {
+      return response.status(202).json(user);
+    } else {
+      return response.status(400).json({ message: 'An error has occured.' });
+    }
+  } catch (error) {
+    return response.status(400).send({ message: 'User not found.' });
   }
 };
 
@@ -30,16 +45,16 @@ exports.postUsers = async (request, response) => {
       name,
       email,
       password,
-      permissions: "USER",
+      permissions: 'USER',
     });
     if (user) {
-      return response.send({ message: "User created.", data: user });
+      return response.send({ message: 'User created.', data: user });
     } else {
-      return response.status(400).send("Error! User not created.");
+      return response.status(400).send('Error! User not created.');
     }
   } catch (error) {
     console.log(error.message);
-    return response.status(400).send("There was an error creating the user.");
+    return response.status(400).send('There was an error creating the user.');
   }
 };
 
@@ -59,13 +74,13 @@ exports.putUsers = async (request, response) => {
     if (userUpdated) {
       return response
         .status(202)
-        .json({ message: "User updated.", data: userUpdated });
+        .json({ message: 'User updated.', data: userUpdated });
     } else {
-      return response.status(404).json({ message: "Error! User not updated." });
+      return response.status(404).json({ message: 'Error! User not updated.' });
     }
   } catch (error) {
     console.log(error.message);
-    return response.status(400).send("There was an error updating the user.");
+    return response.status(400).send('There was an error updating the user.');
   }
 };
 
@@ -74,13 +89,13 @@ exports.deleteUsers = async (request, response) => {
     const { id } = request.params;
     const deletedUser = await User.deleteOne({ _id: id });
     if (deletedUser.deletedCount > 0) {
-      return response.status(200).json({ message: "User deleted." });
+      return response.status(200).json({ message: 'User deleted.' });
     } else {
-      return response.status(400).json({ message: "Error! User not deleted." });
+      return response.status(400).json({ message: 'Error! User not deleted.' });
     }
   } catch (error) {
     console.log(error.message);
-    return response.status(400).send("There was an error deleting the user.");
+    return response.status(400).send('There was an error deleting the user.');
   }
 };
 
@@ -96,20 +111,45 @@ exports.login = async (request, response) => {
   try {
     const { email, password } = request.body;
     // select({password: true}) is because the select password in user.model is set to false to don't show when we get users
-    const user = await User.findOne({ email: email }).select({
-      password: true,
-    });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return response.status(404).send("User not found.");
+      return response.status(404).send({ message: 'User not found!' });
     }
     if (!(await bcrypt.compare(password, user.password))) {
-      return response.status(400).send("Invalid password. Try again.");
+      return response
+        .status(400)
+        .send({ message: 'Invalid password! Try again!' });
     }
     const token = generateToken({ id: user.id });
     user.password = undefined;
-    return response.send({ data: user, token });
+    // return response.send({ data: user, token });
+    return response.send({
+      message: 'Welcome ' + user.name,
+      data: user,
+      token,
+    });
   } catch (error) {
     console.log(error.message);
-    return response.status(400).send("There was an error with login.");
+    return response.status(400).send('There was an error with login.');
+  }
+};
+
+exports.logout = async (request, response) => {
+  const token = request.headers.authorization;
+
+  if (!token)
+    return response
+      .status(RequestStatus.BAD_REQUEST)
+      .json({ message: 'No token provided!' });
+
+  if (!(await TokenBlacklist.findOne({ token: token }))) {
+    await TokenBlacklist.create({ token });
+    return response
+      .status(RequestStatus.OK)
+      .json({ message: 'Logout performed successfully!' });
+  } else {
+    return response
+      .status(RequestStatus.NOT_MODIFIED)
+      .json({ message: 'Logout already performed!' });
   }
 };
